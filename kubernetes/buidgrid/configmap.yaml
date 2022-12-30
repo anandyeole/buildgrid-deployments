@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bgd-execution-conf
+  labels:
+    app: bgd-execution
+data:
+  execution.yaml: |
+    server:
+      - !channel
+        port: 50051
+        insecure-mode: true
+
+    description: >
+      BuildGrid Execution service configuration
+
+    authorization:
+      method: none
+
+    monitoring:
+      enabled: false
+      endpoint-type: udp
+      endpoint-location: graphite:8125
+      serialization-format: statsd
+      metric-prefix: buildgrid
+
+    instances:
+      - name: buildgrid
+        description: |
+          The `buildgrid` BuildGrid instance.
+
+        storages:
+          - !disk-storage &main-storage
+        
+        logstream-storage:
+          - !memory-logstream-storage &logstream-storage
+
+        services:
+          - !action-cache &main-action
+            storage: *main-storage
+            max-cached-refs: 256
+            allow-updates: true
+
+          - !execution
+            storage: *main-storage
+            action-cache: *main-action
+          
+          - !cas
+            storage: *main-storage
+          
+          - !logstream
+            stream-storage: *logstream-storage
+            prefix: buildgrid
+
+          - !bytestream
+            stream-storage: *logstream-storage
+            storage: *main-storage
+
+    thread-pool-size: 100
